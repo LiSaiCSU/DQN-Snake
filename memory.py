@@ -3,14 +3,17 @@ from collections import deque, namedtuple
 
 # 使用 namedtuple 来定义一次转换（transition）的数据结构
 # 这样可以使代码更具可读性，例如用 experience.state 代替 experience[0]
-Transition = namedtuple('Transition', 
-                        ('state', 'action', 'reward', 'next_state', 'done'))
+Transition = namedtuple(
+    "Transition", ("state", "action", "reward", "next_state", "done")
+)
+
 
 class ReplayMemory:
     """
     经验回放池，用于存储和随机采样智能体的经历。
     这是DQN成功的关键组件之一，用于打破数据相关性。 [cite: 27]
     """
+
     def __init__(self, capacity):
         """
         初始化 ReplayMemory。
@@ -42,11 +45,12 @@ class ReplayMemory:
         """
         return len(self.memory)
 
+
 # --- 使用示例 ---
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 假设容量为100
     memory = ReplayMemory(100)
-    
+
     # 1. 添加经验 (push)
     # 假设 state 是一个 (200, 200, 4) 的数组
     # action, reward, done 是数字
@@ -55,18 +59,18 @@ if __name__ == '__main__':
         # 创建一些假的 state 数据
         dummy_state = f"state_{i}"
         dummy_next_state = f"state_{i+1}"
-        
+
         # 将经验存入
-        memory.push(dummy_state, i, i*0.1, dummy_next_state, False)
+        memory.push(dummy_state, i, i * 0.1, dummy_next_state, False)
 
     # 2. 检查长度 (__len__)
-    print(f"Current memory size: {len(memory)}") # 应输出 10
+    print(f"Current memory size: {len(memory)}")  # 应输出 10
 
     # 3. 随机采样 (sample)
     if len(memory) > 3:
         print("\nSampling a batch of 3 experiences:")
         batch = memory.sample(3)
-        
+
         # 打印采样结果
         for i, experience in enumerate(batch):
             print(f"  Sample {i+1}:")
@@ -75,10 +79,10 @@ if __name__ == '__main__':
             print(f"    Reward: {experience.reward}")
             print(f"    Next State: {experience.next_state}")
             print(f"    Done: {experience.done}")
-            
+
     # 模拟内存满的情况
     print("\nPushing 100 more experiences to fill the memory...")
     for i in range(10, 110):
-         memory.push(f"state_{i}", i, i*0.1, f"state_{i+1}", False)
-         
-    print(f"Memory size after filling: {len(memory)}") # 应输出 100 (最大容量)
+        memory.push(f"state_{i}", i, i * 0.1, f"state_{i+1}", False)
+
+    print(f"Memory size after filling: {len(memory)}")  # 应输出 100 (最大容量)

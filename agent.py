@@ -1,28 +1,32 @@
+import math
+import random
+
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import random
-import math
-import numpy as np
-from model import create_modified_resnet18
+import torch.optim as optim
+
 from memory import ReplayMemory, Transition
+from model import create_modified_resnet18
 
 
 class DQNAgent:
-    
-    def __init__(self,
-                 policy_network, # <--- 新增
-                 target_network, # <--- 新增
-                 n_actions,
-                 learning_rate=0.0001,
-                 gamma=0.99,
-                 epsilon_start=0.9,
-                 epsilon_end=0.05,
-                 epsilon_decay=10000,
-                 memory_capacity=30000,
-                 batch_size=32,
-                 target_update_freq=1000):  # <--- 新增参数，设置默认值
+
+    def __init__(
+        self,
+        policy_network,  # <--- 新增
+        target_network,  # <--- 新增
+        n_actions,
+        learning_rate=0.0001,
+        gamma=0.99,
+        epsilon_start=0.9,
+        epsilon_end=0.05,
+        epsilon_decay=10000,
+        memory_capacity=30000,
+        batch_size=32,
+        target_update_freq=1000,
+    ):  # <--- 新增参数，设置默认值
 
         # (移除了 input_shape 参数，因为模型是外部传入的)
 
@@ -51,36 +55,44 @@ class DQNAgent:
 
         # 定义优化器
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=learning_rate)
-        
+
         # 实例化经验回放池
         self.memory = ReplayMemory(memory_capacity)
-        
+
         # 用于epsilon衰减的步数计数器
         self.steps_done = 0
 
     def current_epsilon(self):
-        epsilon = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                    math.exp(-1. * self.steps_done / self.epsilon_decay)
+        epsilon = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * math.exp(
+            -1.0 * self.steps_done / self.epsilon_decay
+        )
         return epsilon
 
     def select_action(self, state):
         """根据当前状态和ε-greedy策略选择一个动作"""
         # 计算当前的epsilon值，它会随着训练步数增加而衰减
-        epsilon = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                  math.exp(-1. * self.steps_done / self.epsilon_decay)
+        epsilon = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * math.exp(
+            -1.0 * self.steps_done / self.epsilon_decay
+        )
         self.steps_done += 1
-        
+
         # 以 epsilon 的概率进行探索（随机选择动作）
         if random.random() < epsilon:
-            return torch.tensor([[random.randrange(self.n_actions)]], device=self.device, dtype=torch.long)
+            return torch.tensor(
+                [[random.randrange(self.n_actions)]],
+                device=self.device,
+                dtype=torch.long,
+            )
         else:
             # 以 1-epsilon 的概率进行利用（选择Q值最高的动作）
             with torch.no_grad():
                 # state 是 (H, W, C) 的 numpy 数组，需要转换为 (B, C, H, W) 的 tensor
                 # B=1, C=4, H=200, W=200
-                state_tensor = torch.from_numpy(state).float().to(self.device).unsqueeze(0)
-                state_tensor = state_tensor.permute(0, 3, 1, 2) # 转换为 (B, C, H, W)
-                
+                state_tensor = (
+                    torch.from_numpy(state).float().to(self.device).unsqueeze(0)
+                )
+                state_tensor = state_tensor.permute(0, 3, 1, 2)  # 转换为 (B, C, H, W)
+
                 # 使用策略网络预测Q值
                 q_values = self.policy_net(state_tensor)
                 # 选择Q值最高的动作
@@ -101,10 +113,17 @@ class DQNAgent:
         # 2. 准备训练数据
         # 将numpy数组转换为tensor，并调整维度
         state_batch = np.array([s for s in batch.state])
-        state_batch = torch.from_numpy(state_batch).float().to(self.device).permute(0, 3, 1, 2)
-        
+        state_batch = (
+            torch.from_numpy(state_batch).float().to(self.device).permute(0, 3, 1, 2)
+        )
+
         next_state_batch = np.array([s for s in batch.next_state])
-        next_state_batch = torch.from_numpy(next_state_batch).float().to(self.device).permute(0, 3, 1, 2)
+        next_state_batch = (
+            torch.from_numpy(next_state_batch)
+            .float()
+            .to(self.device)
+            .permute(0, 3, 1, 2)
+        )
 
         action_batch = torch.cat(batch.action)
         reward_batch = torch.tensor(batch.reward, device=self.device).float()
@@ -120,17 +139,17 @@ class DQNAgent:
         # 使用目标网络计算下一个状态的最大Q值
         with torch.no_grad():
             next_state_q_values = self.target_net(next_state_batch).max(1)[0]
-        
+
         # 如果下一个状态是终止状态，则其未来价值为0
         next_state_q_values[done_batch] = 0.0
-        
+
         # 计算最终的目标Q值
         target_q_values = reward_batch + (self.gamma * next_state_q_values)
 
         # 5. 计算损失
         # 使用 Huber loss，它比 MSELoss 更稳健
         loss = F.smooth_l1_loss(predicted_q_values, target_q_values.unsqueeze(1))
-        
+
         # 6. 优化模型
         self.optimizer.zero_grad()
         loss.backward()
