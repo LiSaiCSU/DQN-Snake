@@ -36,8 +36,8 @@ env = SnakeGameGrid()
 n_actions = len(ACTIONS)
 
 # 实例化您的ResNet18 Q网络
-policy_net = create_modified_resnet18(n_actions=n_actions) # 确保模型创建函数能接收动作数
-target_net = create_modified_resnet18(n_actions=n_actions)
+policy_net = create_modified_resnet18() # 确保模型创建函数能接收动作数
+target_net = create_modified_resnet18()
 
 # ----------> 改动 2: 启用DataParallel <----------
 # 检查是否有多个GPU可用，并使用nn.DataParallel包装模型
